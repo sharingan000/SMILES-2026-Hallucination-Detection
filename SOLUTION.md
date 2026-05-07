@@ -42,8 +42,8 @@ The generated predictions.csv file is also publicly available here: [link](https
 
 ```bash
 # Clone the repository
-git clone https://github.com/ahdr3w/SMILES-HALLUCINATION-DETECTION.git
-cd SMILES-HALLUCINATION-DETECTION
+git clone https://github.com/sharingan000/SMILES-2026-Hallucination-Detection.git
+cd SMILES-2026-Hallucination-Detection
 
 # Set up a virtual environment (optional but recommended)
 python -m venv .venv
