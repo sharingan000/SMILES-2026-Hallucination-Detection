@@ -91,57 +91,78 @@ Instead of extracting features from all 25 layers, I focused mostly on the middl
 Below are the details of the extracted features. Click to expand:
 
 <details>
-<summary><b>1. Representation Projections (Mean Difference Projection)</b></summary>
-<br>
+<summary><b>1. Representation Projections (Centroid Vector)</b></summary>
+
 Inspired by <i>Representation Engineering</i> [4], I found the specific "direction" in the embedding space that separates truthful answers from hallucinations.
 
 *   **The Math:** For a specific layer, I calculate the mean vector of all hallucinated samples and subtract the mean vector of truthful samples to get the direction $D$:
-    $$ D = \mu_{hallucinated} - \mu_{truthful} $$
+
+    $$
+    D = \mu_{hallucinated} - \mu_{truthful}
+    $$
+
 *   **The Projection:** The raw hidden state $x$ of a new sample is projected onto this normalized direction:
-    $$ Feature = x \cdot \frac{D}{||D||} $$
+
+    $$
+    Feature = x \cdot \frac{D}{||D||}
+    $$
 
 This compresses 896 dimensions into just **one highly informative number** per layer. 
 > **Strict Validation:** To avoid data leakage, $D$ is calculated *only on the training fold* inside the `fit()` method. 
 
 **Insight:** These projection features (especially `proj_L12` and `proj_L13`) were the absolute best predictors for the ROC-AUC model.
+
 </details>
 
 <details>
 <summary><b>2. Uncertainty: Entropy & Kurtosis</b></summary>
-<br>
+
 When a model hallucinates, its internal activations often show signs of uncertainty [5]. I calculated several statistical metrics on the last token and across all tokens:
 
 *   **Softmax Entropy:** Measures how "unsure" the model is.
-    $$ H = - \sum p_i \log(p_i), \quad \text{where } p_i = \text{softmax}(x_i) $$
+
+    $$
+    H = - \sum p_i \log(p_i), \quad \text{where } p_i = \text{softmax}(x_i)
+    $$
+
 *   **Energy Entropy:** Similar to softmax, but uses the squared values of activations as probabilities.
 *   **Kurtosis:** Measures the "tailedness" of the activation distribution (how many extreme outlier values exist).
-    $$ K = \frac{1}{N} \sum \left( \frac{x_i - \mu}{\sigma} \right)^4 - 3 $$
+
+    $$
+    K = \frac{1}{N} \sum \left( \frac{x_i - \mu}{\sigma} \right)^4 - 3
+    $$
 
 **Insight:** Statistical features performed incredibly well for strict classification. For example, `all_tokens_max_kurtosis_layer17` was the #1 most important feature for the Accuracy model.
+
 </details>
 
 <details>
 <summary><b>3. Layer Dynamics: Cosine Drift & Norms</b></summary>
-<br>
+
 I also looked at how the representation changes as it passes through the network [6].
 
 *   **Cosine Drift:** The cosine similarity between the last-token embeddings of adjacent layers (e.g., Layer 22 vs Layer 23). Rapid shifts (low similarity) often indicate that the model is abruptly changing context or "guessing".
-    $$ Drift_{i, i+1} = \frac{L_i \cdot L_{i+1}}{||L_i|| \times ||L_{i+1}||} $$
+
+    $$
+    Drift_{i, i+1} = \frac{L_i \cdot L_{i+1}}{||L_i|| \times ||L_{i+1}||}
+    $$
+
 *   **Layer Norms:** The standard L2 norm ($||x||_2$) of the embedding.
 
 **Insight:** Features like `drift_18_19` and `norm_L12` consistently stayed in the top 5 most important features for the Accuracy model.
+
 </details>
 
 <details>
 <summary><b>4. Topology: Kirchhoff Index & Effective Rank</b></summary>
-<br>
+
 To capture the shape and "focus" of the model's attention, I used Singular Value Decomposition (SVD) and graph metrics:
 
 *   **Effective Rank:** Uses singular values to measure how many independent dimensions the activations actually use.
 *   **Kirchhoff Index:** Treats the token similarity matrix as a graph and calculates its total resistance. It measures how "diffuse" or spread out the information is among the tokens.
+
 </details>
 
-<br>
 
 > **Note on Feature Importance:** 
 > While my logs show clear top features, gradient boosting models often share or "dilute" feature importance among highly correlated variables. Because features from adjacent layers (e.g., Layer 16 and 17) are highly correlated, the exact ranking order is slightly blurred. However, the overall trend between groups of features (Projections vs. Geometry) remains very clear.
